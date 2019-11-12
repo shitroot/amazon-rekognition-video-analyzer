@@ -8,9 +8,10 @@ import base64
 import datetime
 import time
 import decimal
+from decimal import Decimal
 import uuid
 import json
-import cPickle
+import pickle
 import boto3
 import pytz
 from pytz import timezone
@@ -64,7 +65,7 @@ def process_image(event, context):
     for record in event['Records']:
 
         frame_package_b64 = record['kinesis']['data']
-        frame_package = cPickle.loads(base64.b64decode(frame_package_b64))
+        frame_package = pickle.loads(base64.b64decode(frame_package_b64))
 
         img_bytes = frame_package["ImageBytes"]
         approx_capture_ts = frame_package["ApproximateCaptureTime"]
@@ -145,6 +146,9 @@ def process_image(event, context):
 
         #Store frame image in S3
         s3_key = (s3_key_frames_root + '{}/{}/{}/{}/{}.jpg').format(year, mon, day, hour, frame_id)
+        print("###  datos de s3 #######3")
+        print(s3_bucket)
+        print(s3_key)
         
         s3_client.put_object(
             Bucket=s3_bucket,
@@ -166,6 +170,16 @@ def process_image(event, context):
             's3_bucket' : s3_bucket,
             's3_key' : s3_key
         }
+
+        print(item)
+        rekog_labels=item['rekog_labels']
+        for i in range(len(rekog_labels)):
+            bounds=rekog_labels[i]['Instances']
+            boundata = json.loads(json.dumps(bounds), parse_float=Decimal)
+            rekog_labels[i]['Instances']=boundata
+
+        item['rekog_labels']=rekog_labels
+
 
         ddb_table.put_item(Item=item)
 
